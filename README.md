@@ -101,10 +101,14 @@ Built Node.js/Express operational endpoints and integrated the application with 
 4. **Preserve safety:** Keep destructive actions disabled unless independent safeguards are verified.
 5. **Document limitations:** Distinguish lab observations and simulations from production reliability claims.
 
+## Laboratory screenshot evidence
+
+The portfolio includes [**11 selected evidence screenshots with descriptions**](docs/10-visual-evidence.md), covering Phase 15 PostgreSQL replication, primary/standby routing, simulated telemetry, monitoring-only HA checks, synthetic failover-policy tests, Ansible deployment results, and Grafana dashboards. See [Phase 15 technical documentation](docs/13-phase15-replication-monitoring.md) and [the simulation case study](docs/14-phase15-failover-simulation.md) for the full discussion and limitations.
+
 ## Professional direction
 
 I am developing deeper expertise in **systems engineering, Linux systems administration, infrastructure automation, database operations, observability, and reliability engineering**. The projects in this portfolio demonstrate practical problem-solving, troubleshooting discipline, and the ability to integrate multiple technologies into working systems.
 
 ---
 
-**Evidence note:** This page is a public, sanitized summary of self-directed laboratory work. It intentionally contains no credentials, raw terminal captures, private host identifiers, or unreviewed infrastructure screenshots. All telemetry figures refer to simulated test data. Future updates may add reviewed source code and case-study files once they have been checked for public release.
+**Evidence note:** This is a self-directed laboratory portfolio with selected, redacted screenshots of actual tests. Original source reports and unreviewed captures are not included. Simulated telemetry is not customer traffic, and no end-to-end automatic failover guarantee is claimed.

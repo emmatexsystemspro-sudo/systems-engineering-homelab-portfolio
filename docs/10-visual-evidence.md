@@ -1,36 +1,79 @@
-# Selected screenshot evidence — multi-node systems engineering lab
+# Visual evidence — systems engineering laboratory
 
-These are **cropped excerpts** of screenshots recorded during October 2026 laboratory work. The source files remain private. Browser addresses, device chrome, terminal prompts, or internal host labels have been excluded or masked where necessary. Image content has **not been recreated**, and visible results have not been changed. All evidence refers to **self-directed laboratory tasks**, not production infrastructure or customer workloads.
+These are **selected, cropped or redacted screenshots of actual lab execution**, not reconstructed images or enterprise production workloads. Original unredacted captures and source reports remain private. Cropping and address masking remove identifying information without changing visible test results. Evidence is tied to the specific session in which it was captured.
 
-## Six-node Ansible telemetry deployment
+## Phase 15 — PostgreSQL reliability and monitoring (November 2026)
 
-![Ansible play recap for six Linux nodes](../screenshots/ansible-telemetry-recap-redacted.png)
+### Correct PgBouncer routing and database roles
 
-The screenshot shows six completed host rows in an Ansible `PLAY RECAP`, with `unreachable=0` and `failed=0`. Original inventory labels were masked. This supports successful execution of the recorded tasks, not independent proof that every metric endpoint was continuously healthy.
+![Read-write primary and read-only standby SQL role results](../screenshots/phase15-pgbouncer-primary-standby.png)
 
-## Firewall configuration playbook
+Direct database role queries through separate local PgBouncer listeners returned `pg_is_in_recovery() = false` and `transaction_read_only = off` for the **primary**, versus `true` and `on` for the **standby**. Private backend addresses have been masked. This shows correct roles at the time of the snapshot, not automatic failover.
 
-![Ansible firewall play recap for six Linux nodes](../screenshots/ansible-firewall-recap-redacted.png)
+### Primary PostgreSQL streaming replication
 
-Six host rows completed the reported firewall-configuration run with zero task failures. Original inventory labels were masked. A play recap does not independently prove every runtime firewall rule or all network isolation requirements.
+![PostgreSQL primary side WAL sender and LSN values](../screenshots/phase15-primary-streaming-wal.png)
 
-## Grafana CPU and memory metrics
+The `pg_stat_replication` query showed one WAL receiver in `streaming` state, with `sync_state = async`. Sent, written, flushed, and replayed LSNs matched in the captured snapshot. Reported replay lag was approximately 0.23 seconds **in this single snapshot only**. A private container address was masked.
 
-![Grafana CPU and memory time series](../screenshots/grafana-cpu-memory-cropped.png)
+### Standby WAL reception and replay
 
-Two Grafana panels display non-empty CPU and memory time series across the captured observation window. The screenshot supports successful collection and visualization for the selected dashboard target; it does not establish full-fleet health or continuous monitoring availability.
+![Standby WAL receiver state and replay LSN queries](../screenshots/phase15-standby-wal-receiver.png)
 
-## Grafana filesystem and storage visibility
+The standby's `pg_stat_wal_receiver` returned `streaming`, and follow-up SQL showed `pg_is_in_recovery()` true with received and replayed WAL positions matching. The sender's private network address is masked. Together with the primary-side query, this supports operational *asynchronous streaming replication*, not guaranteed zero data loss.
 
-![Grafana filesystem available-space graph](../screenshots/grafana-filesystem-cropped.png)
+### Simulated telemetry ingestion
 
-The filesystem panel displays available-space measurements for several paths, including a lab storage mount labeled `/mnt/mac_vault` with approximately 314 GiB available in the displayed summary. The chart alone does not prove a successful backup, recovery, NFS transport, or data-integrity test.
+![PostgreSQL query showing 150 simulated telemetry rows in five minutes](../screenshots/phase15-telemetry-150-events.png)
 
-## Evidence limitations
+A SQL query reported **150 records** captured within a five-minute laboratory window. These are **simulated telemetry events**, not real commercial transaction data or a production load test.
 
-- These are **selected October 2026 screenshots**, not a complete Phase 15 evidence collection.
-- The November 2026 PostgreSQL replication, PgBouncer routing, systemd monitoring, and 11/11 simulated failover checks are documented separately in [Phase 15 validation](13-phase15-replication-monitoring.md) and [simulation methodology](14-phase15-failover-simulation.md), but **are not depicted** in these four captures.
-- Cropping and redaction intentionally remove identifying context without manufacturing output or implying missing tests were performed.
-- Review each cropped image personally before setting repository visibility to Public; review earlier Git history separately for exposed secrets or unredacted captures.
+### Monitoring-only orchestration and safety
 
-[Back to case studies](01-architecture.md)
+![systemd service status with monitoring-only orchestrator](../screenshots/phase15-systemd-monitoring-only.png)
+
+The HA-monitor systemd unit was running under a monitor-only script; logs explicitly stated **automatic failover disabled**. In the same test, the application worker, dashboard, and monitor all reported `active`. The service name reflects historical project naming, not a validated automatic promotion capability.
+
+![Repeated primary writable, standby read-only monitoring events](../screenshots/phase15-monitoring-healthy.png)
+
+A later `journalctl` window contained repeated `[HEALTHY] Primary writable; standby read-only` messages. The same screen included another successful query of 150 simulated telemetry events in five minutes. This is short-interval lab monitoring evidence, not an availability SLA.
+
+### Non-destructive failover decision simulation
+
+![Eleven synthetic failover policy tests passed; promotion not authorized](../screenshots/phase15-dryrun-11-of-11.png)
+
+An isolated Python simulator reported **11/11 synthetic scenarios passed**, ending with `REVIEW_ONLY` when all hypothetical safety gates were satisfied. It did **not** perform host fencing, database promotion, client cutover, or any other destructive action. This tests policy branching, not end-to-end failover safety.
+
+See [the Phase 15 case study](13-phase15-replication-monitoring.md) and [simulator methodology](14-phase15-failover-simulation.md) for context.
+
+## Earlier automation and observability evidence (October 2026)
+
+### Six-node Ansible telemetry deployment
+
+![Ansible play recap from six Linux nodes](../screenshots/ansible-telemetry-recap-redacted.png)
+
+Six completed host rows in an Ansible `PLAY RECAP` showed `unreachable=0` and `failed=0`. Host labels were masked. This demonstrates the recorded run's task results, not continuous endpoint health.
+
+### Six-node firewall playbook
+
+![Ansible firewall task play recap](../screenshots/ansible-firewall-recap-redacted.png)
+
+Six Linux nodes completed a firewall playbook with zero task failures. This does not independently verify all runtime policy semantics.
+
+### Grafana CPU and memory visualization
+
+![Grafana metrics time-series panels](../screenshots/grafana-cpu-memory-cropped.png)
+
+Two Grafana panels show non-empty CPU and memory time-series data for selected targets in the captured observation interval. They do not demonstrate full-fleet continuous availability.
+
+### Grafana filesystem metrics
+
+![Grafana filesystem available capacity panel](../screenshots/grafana-filesystem-cropped.png)
+
+A Grafana dashboard displayed storage capacity for several mounts, including a laboratory network-storage path. A metrics chart alone does not prove backups, restore success, or data integrity.
+
+## What the evidence does not prove
+
+The screenshots do **not** prove production-grade HA, independently verified fencing, guaranteed RPO/RTO, zero-downtime failover, automatic reintegration of an old primary, or successful recovery from every failure mode. All laboratory telemetry described as simulated remains simulated. Screenshots should be reviewed by the repository owner before changing visibility to Public.
+
+[Return to the portfolio overview](../README.md)
