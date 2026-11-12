@@ -1,0 +1,32 @@
+---
+- name: Configure trusted Chrony source on RHEL clients
+  hosts: rhel_ntp_clients
+  become: true
+  vars:
+    chrony_server: 'time.example.internal'  # CHANGE ME: a real trusted source
+  tasks:
+    - name: Install Chrony
+      ansible.builtin.dnf:
+        name: chrony
+        state: present
+
+    - name: Ensure trusted NTP server is configured
+      ansible.builtin.lineinfile:
+        path: /etc/chrony.conf
+        regexp: '^server time\.example\.internal iburst$'
+        line: "server {{ chrony_server }} iburst"
+        insertafter: EOF
+        state: present
+      notify: Restart Chrony
+
+    - name: Enable and start Chrony
+      ansible.builtin.systemd:
+        name: chronyd
+        enabled: true
+        state: started
+
+  handlers:
+    - name: Restart Chrony
+      ansible.builtin.systemd:
+        name: chronyd
+        state: restarted

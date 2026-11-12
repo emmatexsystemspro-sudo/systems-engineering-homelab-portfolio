@@ -1,0 +1,9 @@
+flowchart LR
+    ADMIN[Admin and secure remote access] --> CTRL[Ansible controller]
+    CTRL -. automates .-> HOSTS[Linux / Unix service hosts]
+    CLIENT[Simulated workload] --> PROXY[Ingress and PgBouncer]
+    PROXY --> PRIMARY[PostgreSQL primary]
+    PROXY -. standby connection path .-> STANDBY[PostgreSQL standby - bare metal]
+    PRIMARY -->|WAL replication| STANDBY
+    HOSTS --> LOGS[Centralized logs]
+    HOSTS --> METRICS[Prometheus / Grafana / Loki]
