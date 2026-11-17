@@ -1,4 +1,4 @@
-name: API Governance & OpenAPI Linting
+name: API Governance & Contract Lifecycle Gate
 
 on:
   push:
@@ -7,12 +7,13 @@ on:
       - 'api-governance/**'
       - '.github/workflows/api-governance-lint.yml'
   pull_request:
+    branches: [ main, master ]
     paths:
       - 'api-governance/**'
 
 jobs:
   spectral-governance-check:
-    name: Enforce OpenAPI 3.0 & Spectral Policy Guardrails
+    name: 1. OpenAPI Policy & Security Linting (Spectral)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
@@ -25,3 +26,23 @@ jobs:
 
       - name: Run Stoplight Spectral Governance Linter
         run: npx -y @stoplight/spectral-cli lint api-governance/openapi.yaml --ruleset api-governance/.spectral.yaml --fail-severity error
+
+  breaking-change-check:
+    name: 2. Breaking-Change Detection (oasdiff)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Base & Head Commits
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Extract Base OpenAPI Spec from main
+        run: git show origin/${{ github.base_ref }}:api-governance/openapi.yaml > /tmp/base-openapi.yaml
+
+      - name: Run oasdiff Breaking-Change Gate
+        uses: oasdiff/oasdiff-action/breaking@main
+        with:
+          base: /tmp/base-openapi.yaml
+          revision: api-governance/openapi.yaml
+          fail-on-diff: true
