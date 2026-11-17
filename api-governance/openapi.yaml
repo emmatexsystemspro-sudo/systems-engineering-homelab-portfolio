@@ -8,7 +8,7 @@ info:
     contracts (/api/status) alongside an auto-refreshing HTML cluster panel (/api/dashboard).
   contact:
     name: Platform & Governance Engineering
-    url: https://github.com
+    url: https://github.com/emmatexsystemspro-sudo/systems-engineering-homelab-portfolio
   license:
     name: MIT
     url: https://opensource.org
@@ -29,13 +29,13 @@ paths:
       description: |
         Queries the active PostgreSQL database via PgBouncer and HAProxy to return
         system health, ISO-8601 timestamp, replica role state (pg_is_in_recovery),
-        backend server IP, and database name.
+        backend server IP, and database name. Requires API-Key or Bearer JWT authentication.
       operationId: getClusterTelemetryStatus
       tags:
         - Telemetry API
       security:
         - ApiKeyAuth: []
-        - {}
+        - BearerAuth: []
       responses:
         '200':
           description: Successful telemetry status retrieval
@@ -50,6 +50,16 @@ paths:
                   is_replica: false
                   backend_ip: "10.0.2.100"
                   db_name: "cluster_telemetry"
+        '401':
+          description: Unauthorized — missing or invalid X-API-Key or Bearer JWT token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: UNAUTHORIZED
+                message: Missing valid X-API-Key or Authorization Bearer token.
+                timestamp: "2026-11-17T15:03:16.695Z"
         '500':
           description: Internal server or SQL query execution error
           content:
@@ -97,7 +107,12 @@ components:
       type: apiKey
       in: header
       name: X-API-Key
-      description: Optional service-to-service API key for governed telemetry consumers
+      description: Service-to-service API key for governed telemetry consumers
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: OAuth2 / OIDC Bearer JWT token for consumer identity and scope enforcement
   schemas:
     ClusterStatusResponse:
       type: object
