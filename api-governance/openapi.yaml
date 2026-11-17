@@ -143,7 +143,6 @@ components:
         - backend_ip
         - db_name
       properties:
-          type: boolean
         backend_ip:
           type: string
           format: ipv4
