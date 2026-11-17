@@ -47,7 +47,6 @@ paths:
                 system: ONLINE
                 timestamp: "2026-11-17T15:03:16.695Z"
                 database_metrics:
-                  is_replica: false
                   backend_ip: "10.0.2.100"
                   db_name: "cluster_telemetry"
         '401':
@@ -141,14 +140,10 @@ components:
       type: object
       additionalProperties: false
       required:
-        - is_replica
         - backend_ip
         - db_name
       properties:
-        is_replica:
           type: boolean
-          description: Indicates whether the connected PostgreSQL node is in standby recovery mode (false = primary)
-          example: false
         backend_ip:
           type: string
           format: ipv4
