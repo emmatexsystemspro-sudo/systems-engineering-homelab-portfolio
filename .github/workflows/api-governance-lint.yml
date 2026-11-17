@@ -1,0 +1,26 @@
+name: API Governance & OpenAPI Linting
+
+on:
+  push:
+    branches: [ main, master ]
+    paths:
+      - 'api-governance/**'
+      - '.github/workflows/api-governance-lint.yml'
+  pull_request:
+    paths:
+      - 'api-governance/**'
+
+jobs:
+  spectral-governance-check:
+    name: Enforce OpenAPI 3.0 & Spectral Policy Guardrails
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Run Stoplight Spectral Governance Linter
+        uses: stoplightio/spectral-action@v0.8.15
+        with:
+          file_glob: 'api-governance/openapi.yaml'
+          spectral_ruleset: 'api-governance/.spectral.yaml'
+          fail_severity: 'error'

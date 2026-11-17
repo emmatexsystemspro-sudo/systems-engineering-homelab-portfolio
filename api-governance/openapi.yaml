@@ -1,0 +1,166 @@
+openapi: 3.0.3
+info:
+  title: HA Telemetry & Cluster Status API
+  version: 1.0.0
+  description: |
+    Enterprise telemetry and database replication status API for the multi-node K3s
+    and PostgreSQL 15 high-availability cluster. Exposes machine-readable JSON health
+    contracts (/api/status) alongside an auto-refreshing HTML cluster panel (/api/dashboard).
+  contact:
+    name: Platform & Governance Engineering
+    url: https://github.com
+  license:
+    name: MIT
+    url: https://opensource.org
+servers:
+  - url: http://ha-telemetry-dashboard-svc:3000
+    description: Internal K3s ClusterIP Service (lab-apps namespace)
+  - url: http://192.168.1.32:30080
+    description: Worker NodePort External Endpoint
+tags:
+  - name: Telemetry API
+    description: Machine-readable JSON telemetry and PostgreSQL replication status endpoints
+  - name: Cluster UI
+    description: Human-readable HTML telemetry dashboard panels
+paths:
+  /api/status:
+    get:
+      summary: Retrieve live system and PostgreSQL replication status
+      description: |
+        Queries the active PostgreSQL database via PgBouncer and HAProxy to return
+        system health, ISO-8601 timestamp, replica role state (pg_is_in_recovery),
+        backend server IP, and database name.
+      operationId: getClusterTelemetryStatus
+      tags:
+        - Telemetry API
+      security:
+        - ApiKeyAuth: []
+        - {}
+      responses:
+        '200':
+          description: Successful telemetry status retrieval
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClusterStatusResponse'
+              example:
+                system: ONLINE
+                timestamp: "2026-11-17T15:03:16.695Z"
+                database_metrics:
+                  is_replica: false
+                  backend_ip: "10.0.2.100"
+                  db_name: "cluster_telemetry"
+        '500':
+          description: Internal server or SQL query execution error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Service unavailable — upstream database failover or PgBouncer pool exhaustion
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/dashboard:
+    get:
+      summary: Render HTML Telemetry Cluster Panel
+      description: |
+        Serves the auto-refreshing HTML monitoring dashboard (Phase 12 Telemetry Cluster Panel)
+        and acts as the Kubernetes Readiness Probe endpoint for pod traffic routing.
+      operationId: getTelemetryDashboardPanel
+      tags:
+        - Cluster UI
+      responses:
+        '200':
+          description: HTML telemetry dashboard rendered successfully
+          content:
+            text/html:
+              schema:
+                type: string
+                example: "<html><head><title>Phase 12 Telemetry Cluster Panel</title></head><body>...</body></html>"
+        '500':
+          description: Internal server error rendering dashboard
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Service unavailable — readiness check failing due to database outage
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: Optional service-to-service API key for governed telemetry consumers
+  schemas:
+    ClusterStatusResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - system
+        - timestamp
+        - database_metrics
+      properties:
+        system:
+          type: string
+          description: High-level operational state of the telemetry service
+          enum:
+            - ONLINE
+            - DEGRADED
+            - OFFLINE
+          example: ONLINE
+        timestamp:
+          type: string
+          format: date-time
+          description: UTC ISO-8601 timestamp when the telemetry snapshot was generated
+          example: "2026-11-17T15:03:16.695Z"
+        database_metrics:
+          $ref: '#/components/schemas/DatabaseMetrics'
+    DatabaseMetrics:
+      type: object
+      additionalProperties: false
+      required:
+        - is_replica
+        - backend_ip
+        - db_name
+      properties:
+        is_replica:
+          type: boolean
+          description: Indicates whether the connected PostgreSQL node is in standby recovery mode (false = primary)
+          example: false
+        backend_ip:
+          type: string
+          format: ipv4
+          description: Internal IPv4 address of the PostgreSQL backend handling the pooled connection
+          example: "10.0.2.100"
+        db_name:
+          type: string
+          description: Target PostgreSQL database name serving telemetry records
+          example: "cluster_telemetry"
+    ErrorResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - error
+        - message
+        - timestamp
+      properties:
+        error:
+          type: string
+          description: Machine-readable error code
+          example: DATABASE_UNAVAILABLE
+        message:
+          type: string
+          description: Human-readable explanation of the failure condition
+          example: Unable to establish pooled connection via PgBouncer
+        timestamp:
+          type: string
+          format: date-time
+          description: UTC ISO-8601 timestamp of the error event
+          example: "2026-11-17T15:03:16.695Z"

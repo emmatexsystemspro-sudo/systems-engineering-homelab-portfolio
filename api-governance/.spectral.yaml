@@ -1,0 +1,44 @@
+extends:
+  - spectral:oas
+
+rules:
+  # 1. Enforce API Ownership & Catalog Metadata
+  info-contact: error
+  info-description: error
+  info-license: warn
+
+  # 2. Enforce Operation Discovery & Portal Standards
+  operation-operationId: error
+  operation-tags: error
+  operation-description: warn
+
+  # 3. Enforce Standardized Resilience Error Contracts (500 & 503)
+  require-resilience-error-responses:
+    description: All GET endpoints must explicitly define 500 and 503 error response contracts.
+    severity: error
+    given: "$.paths[*].get.responses"
+    then:
+      - field: "500"
+        function: truthy
+      - field: "503"
+        function: truthy
+
+  # 4. Enforce Strict Schema Governance (Prevent Undocumented Payload Drift)
+  require-strict-schemas:
+    description: Object schemas must explicitly define additionalProperties to prevent contract drift.
+    severity: error
+    given: "$.components.schemas[?(@.type == 'object')]"
+    then:
+      field: additionalProperties
+      function: defined
+
+  # 5. Enforce OWASP API Security: Prohibit HTTP Basic Auth
+  no-basic-auth:
+    description: HTTP Basic authentication is prohibited by enterprise security standards.
+    severity: error
+    given: "$.components.securitySchemes[*]"
+    then:
+      field: scheme
+      function: pattern
+      functionOptions:
+        notMatch: "^basic$"
