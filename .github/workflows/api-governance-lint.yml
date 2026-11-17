@@ -18,9 +18,10 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Run Stoplight Spectral Governance Linter
-        uses: stoplightio/spectral-action@v0.8.15
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
         with:
-          file_glob: 'api-governance/openapi.yaml'
-          spectral_ruleset: 'api-governance/.spectral.yaml'
-          fail_severity: 'error'
+          node-version: '20'
+
+      - name: Run Stoplight Spectral Governance Linter
+        run: npx -y @stoplight/spectral-cli lint api-governance/openapi.yaml --ruleset api-governance/.spectral.yaml --fail-severity error
