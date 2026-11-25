@@ -1,0 +1,98 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mcp-db-secret
+  namespace: lab-apps
+type: Opaque
+stringData:
+  DB_PASSWORD: <REDACTED_MCP_READONLY_PASSWORD>
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: governed-pg-mcp
+  namespace: lab-apps
+  labels:
+    app: governed-pg-mcp
+    tier: ai-governance
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: governed-pg-mcp
+  template:
+    metadata:
+      labels:
+        app: governed-pg-mcp
+        tier: ai-governance
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+      containers:
+        - name: governed-pg-mcp
+          image: localhost/governed-pg-mcp:v1
+          imagePullPolicy: Never
+          ports:
+            - name: http-mcp
+              containerPort: 8080
+          env:
+            - name: DB_HOST
+              value: "192.168.1.31"
+            - name: DB_PORT
+              value: "6433"
+            - name: DB_NAME
+              value: "cluster_telemetry_mcp"
+            - name: DB_USER
+              value: "mcp_readonly"
+            - name: LOKI_URL
+              value: "http://192.168.1.36:3100/loki/api/v1/push"
+            - name: MAX_ROWS
+              value: "100"
+            - name: STATEMENT_TIMEOUT_MS
+              value: "3000"
+          envFrom:
+            - secretRef:
+                name: mcp-db-secret
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "250m"
+              memory: "192Mi"
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: governed-pg-mcp
+  namespace: lab-apps
+  labels:
+    app: governed-pg-mcp
+spec:
+  type: ClusterIP
+  selector:
+    app: governed-pg-mcp
+  ports:
+    - name: http-mcp
+      port: 8080
+      targetPort: 8080

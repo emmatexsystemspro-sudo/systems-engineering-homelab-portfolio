@@ -109,6 +109,10 @@ The portfolio includes [**11 selected evidence screenshots with descriptions**](
 
 I am developing deeper expertise in **systems engineering, Linux systems administration, infrastructure automation, database operations, observability, and reliability engineering**. The projects in this portfolio demonstrate practical problem-solving, troubleshooting discipline, and the ability to integrate multiple technologies into working systems.
 
+## Phase 18 — AI & MCP Data Governance Guardrails
+
+Implemented a hardened, read-only PostgreSQL Model Context Protocol (MCP) server (`ai-mcp-governance/`) enforcing 6-table allowlisting, SQL catalog/DDL blocking, `LIMIT <= 100` row caps, `BEGIN READ ONLY` standby pooling via PgBouncer, and real-time JSON audit streaming to Grafana Loki (`{job="governed-pg-mcp"}`). See [Phase 18 technical documentation](docs/15-phase18-ai-mcp-governance.md) for architecture and verification proof.
+
 ---
 
 **Evidence note:** This is a self-directed laboratory portfolio with selected, redacted screenshots of actual tests. Original source reports and unreviewed captures are not included. Simulated telemetry is not customer traffic, and no end-to-end automatic failover guarantee is claimed.
