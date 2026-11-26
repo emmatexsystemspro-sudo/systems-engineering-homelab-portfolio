@@ -19,6 +19,82 @@ My documentation emphasizes **what I implemented, how I tested it, what failed, 
 | Observability | rsyslog, Prometheus, Grafana, Loki, Promtail, system and application logs |
 | Reliability | Root-cause analysis, service health checks, role verification, failover risk assessment |
 
+## Featured Projects — Platform, API, and AI Governance
+
+The following projects demonstrate hands-on governance engineering, Kubernetes administration, API contract validation, and infrastructure reliability. All implementations were completed in a self-directed engineering laboratory.
+
+### Phase 18 — Read-Only PostgreSQL MCP Governance
+
+Developed a Python Model Context Protocol (MCP) service running on a K3s worker node to provide governed, read-only access to PostgreSQL telemetry.
+
+Implemented multiple security controls:
+
+- Approved-table SQL allowlisting.
+- SQL operation and system catalog restrictions.
+- Least-privilege PostgreSQL database permissions.
+- Read-only transactions through a dedicated PgBouncer standby route.
+- Hardened Kubernetes container configurations.
+- Structured governance audit events collected through Grafana Loki.
+
+**Verified outcomes:** An authorized SELECT query returned three records. Destructive SQL, restricted PostgreSQL catalog access, and queries against unapproved tables were rejected with `GOVERNANCE_BLOCKED` responses.
+
+Loki successfully returned recorded ALLOWED and BLOCKED governance events.
+
+**Limitations:** These tests do not establish immunity to every SQL parsing bypass or demonstrate tamper-proof audit storage.
+
+**Evidence:** [MCP source code and Kubernetes manifests](https://github.com/emmatexsystemspro-sudo/systems-engineering-homelab-portfolio/tree/main/ai-mcp-governance) | [Phase 18 technical runbook](https://github.com/emmatexsystemspro-sudo/systems-engineering-homelab-portfolio/blob/main/docs/15-phase18-ai-mcp-governance.md)
+
+### Phase 17 — API Contract Governance and CI
+
+Developed an OpenAPI 3.0.3 contract governance workflow using Stoplight Spectral, OASDiff, and GitHub Actions.
+
+Implemented:
+
+- Automated API specification linting.
+- Custom API governance policy rules.
+- Breaking-change detection workflows.
+- API security and authentication documentation.
+- Positive and negative CI testing.
+
+**Verified outcomes:** Valid API contract workflows passed. Experimental pull requests were used to examine breaking-change detection behavior.
+
+**Validation limitation:** Detailed job diagnostics should be reviewed before attributing a failed workflow exclusively to a backward-compatibility violation, because an earlier test branch also contained a Spectral schema error.
+
+**Evidence:** [API governance specifications and rules](https://github.com/emmatexsystemspro-sudo/systems-engineering-homelab-portfolio/tree/main/api-governance) | [GitHub Actions workflows](https://github.com/emmatexsystemspro-sudo/systems-engineering-homelab-portfolio/tree/main/.github/workflows)
+
+### Phases 16–17 — Kubernetes Application Platform and Autoscaling
+
+Configured a two-node K3s Kubernetes laboratory with application workloads scheduled on a worker node.
+
+Deployed a containerized Node.js telemetry dashboard using Kubernetes Services, liveness and readiness probes, and CPU-based Horizontal Pod Autoscaling.
+
+**Verified outcomes:**
+
+- Configured autoscaling between 2 and 6 replicas.
+- Established a target CPU utilization of 50% of requested CPU resources.
+- Observed scale-out from 2 to 6 application replicas.
+- Verified automatic scale-down to 2 replicas.
+- Confirmed 2/2 ready and available replicas.
+- Observed zero restarts in the final Pod listing.
+
+These results validate autoscaling behavior and final Pod health, not uninterrupted application availability throughout the entire scaling experiment.
+
+### Phase 15 — PostgreSQL Reliability and Failover Safety
+
+Configured PostgreSQL 15 streaming replication, PgBouncer connection routing, application telemetry services, and monitoring across multiple Linux systems.
+
+**Verified outcomes:**
+
+- Established primary/standby PostgreSQL replication.
+- Validated database role separation.
+- Tested telemetry ingestion and monitoring.
+- Passed 11 non-destructive failover-policy simulation scenarios.
+
+Automatic database promotion remained disabled because independently validated fencing and quorum mechanisms were not available.
+
+The complete architecture, testing evidence, troubleshooting history, and recovery limitations are documented in the detailed Phase 15 project section below.
+
+---
 ## Featured project: Multi-node PostgreSQL reliability and telemetry lab
 
 **Goal:** Validate database replication, safe primary/standby routing, and application monitoring across heterogeneous hardware while investigating high-availability failure modes.
