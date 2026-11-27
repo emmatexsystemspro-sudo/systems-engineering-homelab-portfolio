@@ -51,4 +51,5 @@ jobs:
 
       - name: Validate NetworkPolicy & Kyverno SIEM Shipper Governance Invariants
         run: |
+          python3 -m pip install --quiet pyyaml
           python3 -c "import json, yaml; docs = list(yaml.safe_load_all(open('policy-as-code/network-policies.yaml'))) + list(yaml.safe_load_all(open('policy-as-code/kyverno-loki-shipper.yaml'))); assert len(docs) >= 8; assert all(d.get('metadata', {}).get('labels', {}).get('owner') == 'platform-security' for d in docs); assert all(d.get('metadata', {}).get('labels', {}).get('data-classification') == 'internal-telemetry' for d in docs); dash = json.load(open('ai-mcp-governance/grafana-mcp-governance-dashboard.json')); db = dash.get('dashboard', dash); assert {8, 9}.issubset({p.get('id') for p in db.get('panels', ())}); print('All Phase 21 Governance & SIEM CI Assertions Passed')"
