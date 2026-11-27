@@ -1,0 +1,240 @@
+{
+  "uid": "governed-pg-mcp-siem",
+  "title": "AI MCP Governance & PostgreSQL SIEM",
+  "tags": [
+    "ai-governance",
+    "mcp",
+    "postgresql",
+    "loki",
+    "siem"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "15s",
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "datasource",
+        "type": "datasource",
+        "query": "loki",
+        "current": {
+          "text": "Loki",
+          "value": "Loki"
+        },
+        "hide": 0,
+        "includeAll": false,
+        "multi": false,
+        "refresh": 1
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Allowed Queries (1h)",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 8,
+        "h": 4
+      },
+      "datasource": {
+        "type": "loki",
+        "uid": "${datasource}"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(count_over_time({job=\"governed-pg-mcp\", status=~\"OK|SUCCESS\"}[1h]))"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "green"
+          },
+          "noValue": "0"
+        }
+      }
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Policy Blocked Queries (1h)",
+      "gridPos": {
+        "x": 8,
+        "y": 0,
+        "w": 8,
+        "h": 4
+      },
+      "datasource": {
+        "type": "loki",
+        "uid": "${datasource}"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(count_over_time({job=\"governed-pg-mcp\", status=\"BLOCKED\"}[1h]))"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "orange"
+          },
+          "noValue": "0"
+        }
+      }
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Unauthorized 401 Attempts (1h)",
+      "gridPos": {
+        "x": 16,
+        "y": 0,
+        "w": 8,
+        "h": 4
+      },
+      "datasource": {
+        "type": "loki",
+        "uid": "${datasource}"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(count_over_time({job=\"governed-pg-mcp\", status=\"UNAUTHORIZED\"}[1h]))"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "red"
+          },
+          "noValue": "0"
+        }
+      }
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "MCP Request Rate by Governance Decision (req/s)",
+      "gridPos": {
+        "x": 0,
+        "y": 4,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "loki",
+        "uid": "${datasource}"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "legendFormat": "{{status}} ({{tool}})",
+          "expr": "sum by (status, tool) (rate({job=\"governed-pg-mcp\"}[5m]))"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        }
+      }
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Query Execution Latency Percentiles (p50 / p95 / p99)",
+      "gridPos": {
+        "x": 12,
+        "y": 4,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "loki",
+        "uid": "${datasource}"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "legendFormat": "p50",
+          "expr": "quantile_over_time(0.50, {job=\"governed-pg-mcp\"} | json | unwrap duration_ms [5m])"
+        },
+        {
+          "refId": "B",
+          "legendFormat": "p95",
+          "expr": "quantile_over_time(0.95, {job=\"governed-pg-mcp\"} | json | unwrap duration_ms [5m])"
+        },
+        {
+          "refId": "C",
+          "legendFormat": "p99",
+          "expr": "quantile_over_time(0.99, {job=\"governed-pg-mcp\"} | json | unwrap duration_ms [5m])"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms"
+        }
+      }
+    },
+    {
+      "id": 6,
+      "type": "table",
+      "title": "Top Blocked SQL SHA-256 Hashes & Policy Violations (1h)",
+      "gridPos": {
+        "x": 0,
+        "y": 12,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "loki",
+        "uid": "${datasource}"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "instant": true,
+          "expr": "topk(10, sum by (sql_sha256, reason) (count_over_time({job=\"governed-pg-mcp\", status=\"BLOCKED\"} | json [1h])))"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "logs",
+      "title": "Live MCP Governance & Security Audit Stream",
+      "gridPos": {
+        "x": 12,
+        "y": 12,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "loki",
+        "uid": "${datasource}"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "{job=\"governed-pg-mcp\"} | json"
+        }
+      ],
+      "options": {
+        "showTime": true,
+        "prettifyLogMessage": true,
+        "enableLogDetails": true
+      }
+    }
+  ]
+}

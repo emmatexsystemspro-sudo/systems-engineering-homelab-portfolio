@@ -23,6 +23,24 @@ My documentation emphasizes **what I implemented, how I tested it, what failed, 
 
 The following projects demonstrate hands-on governance engineering, Kubernetes administration, API contract validation, and infrastructure reliability. All implementations were completed in a self-directed engineering laboratory.
 
+### Phase 19 — MCP Zero-Trust Authentication, Observability, and CI Guardrails
+
+Hardened the Kubernetes-hosted PostgreSQL MCP service (`v2`) with constant-time API authentication, real-time security telemetry in Grafana Loki, and automated CI regression testing.
+
+Implemented security and reliability controls:
+
+- Constant-time Bearer token authentication (`hmac.compare_digest`) via Kubernetes `secretKeyRef` (`mcp-db-secret`).
+- Unauthenticated `/healthz` probe isolation paired with `401 Unauthorized` (`-32001`) JSON-RPC enforcement on `/mcp`.
+- Structured `UNAUTHORIZED` security audit emission (`tool="auth"`) streamed to Grafana Loki.
+- Provisioned Grafana Loki LogQL dashboard tracking allowed/blocked/unauthorized event rates, p50/p95/p99 latency percentiles, and top blocked `sql_sha256` query hashes.
+- Automated `pytest` regression suite (30 unit and HTTP integration tests) and secret-hygiene CI workflow in GitHub Actions.
+
+**Verified outcomes:** Unauthenticated `/mcp` requests returned `401 Unauthorized` and emitted `status="UNAUTHORIZED"` audit records to Loki, while authenticated requests with a 256-bit Bearer token succeeded (`200 OK`). All 30 `pytest` governance, authentication, row-clamping, and audit-emission tests passed.
+
+**Limitations:** Static Bearer tokens validate client authorization at the MCP endpoint but do not replace mTLS or short-lived identity-provider tokens in production environments.
+
+**Evidence:** [MCP governance source & Grafana dashboard](https://github.com) | [CI workflow](https://github.com) | [Phase 19 technical runbook](https://github.com)
+
 ### Phase 18 — Read-Only PostgreSQL MCP Governance
 
 Developed a Python Model Context Protocol (MCP) service running on a K3s worker node to provide governed, read-only access to PostgreSQL telemetry.

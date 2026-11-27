@@ -1,4 +1,5 @@
 import hashlib
+import hmac
 import json
 import os
 import re
@@ -15,6 +16,7 @@ DB_PORT = int(os.getenv("DB_PORT", "6433"))
 DB_NAME = os.getenv("DB_NAME", "cluster_telemetry_mcp")
 DB_USER = os.getenv("DB_USER", "mcp_readonly")
 DB_PASSWORD = os.environ["DB_PASSWORD"]
+MCP_API_TOKEN = os.getenv("MCP_API_TOKEN", "").strip()
 LOKI_URL = os.getenv("LOKI_URL", "http://192.168.1")
 MAX_ROWS = int(os.getenv("MAX_ROWS", "100"))
 STATEMENT_TIMEOUT_MS = int(os.getenv("STATEMENT_TIMEOUT_MS", "3000"))
@@ -240,9 +242,35 @@ class MCPHandler(BaseHTTPRequestHandler):
         else:
             self._send_json(404, {"error": "Not found"})
 
+    def _is_authorized(self) -> bool:
+        if not MCP_API_TOKEN:
+            return False
+        auth_header = self.headers.get("Authorization", "")
+        if not auth_header.startswith("Bearer "):
+            return False
+        supplied = auth_header[7:].strip()
+        if not supplied:
+            return False
+        return hmac.compare_digest(supplied.encode("utf-8"), MCP_API_TOKEN.encode("utf-8"))
+
     def do_POST(self):
         if self.path != "/mcp":
             self._send_json(404, {"error": "Not found"})
+            return
+        if not self._is_authorized():
+            forwarded = self.headers.get("X-Forwarded-For", "").split(",")[0].strip()
+            client_ip = forwarded or (self.client_address[0] if self.client_address else "unknown")
+            emit_audit({
+                "tool": "auth",
+                "status": "UNAUTHORIZED",
+                "reason": "Missing or invalid Bearer token",
+                "client_ip": client_ip,
+                "path": self.path,
+            })
+            self._send_json(
+                401,
+                {"jsonrpc": "2.0", "id": None, "error": {"code": -32001, "message": "Unauthorized: valid Bearer token required"}},
+            )
             return
         length = int(self.headers.get("Content-Length", "0"))
         raw = self.rfile.read(length)

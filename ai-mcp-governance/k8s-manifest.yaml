@@ -6,6 +6,7 @@ metadata:
 type: Opaque
 stringData:
   DB_PASSWORD: <REDACTED_MCP_READONLY_PASSWORD>
+  MCP_API_TOKEN: <REDACTED_MCP_API_TOKEN>
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -33,7 +34,7 @@ spec:
         fsGroup: 10001
       containers:
         - name: governed-pg-mcp
-          image: localhost/governed-pg-mcp:v1
+          image: localhost/governed-pg-mcp:v2
           imagePullPolicy: Never
           ports:
             - name: http-mcp
@@ -47,7 +48,12 @@ spec:
               value: "cluster_telemetry_mcp"
             - name: DB_USER
               value: "mcp_readonly"
-            - name: LOKI_URL
+              - name: MCP_API_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: mcp-db-secret
+              key: MCP_API_TOKEN
+        - name: LOKI_URL
               value: "http://192.168.1.36:3100/loki/api/v1/push"
             - name: MAX_ROWS
               value: "100"

@@ -1,0 +1,83 @@
+name: MCP Governance CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "ai-mcp-governance/**"
+      - ".github/workflows/mcp-governance-ci.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "ai-mcp-governance/**"
+      - ".github/workflows/mcp-governance-ci.yml"
+
+jobs:
+  governance-verification:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install CI dependencies
+        run: python -m pip install --upgrade pip pytest pyyaml
+
+      - name: Run MCP Governance Pytest Suite
+        env:
+          DB_PASSWORD: "ci-ephemeral-password"
+          MCP_API_TOKEN: "ci-ephemeral-token-256bit"
+          LOKI_URL: "http://127.0.0"
+        run: pytest -v ai-mcp-governance/tests/test_governance.py
+
+      - name: Secret Hygiene & Redaction Audit
+        run: |
+          python - << 'PY'
+          import re
+          import sys
+          from pathlib import Path
+
+          base = Path("ai-mcp-governance")
+          hex_secret = re.compile(r"(?<![a-fA-F0-9])[a-fA-F0-9]{64}(?![a-fA-F0-9])")
+          violations = []
+
+          for path in base.rglob("*"):
+              if not path.is_file() or "__pycache__" in path.parts:
+                  continue
+              content = path.read_text(errors="ignore")
+              for lineno, line in enumerate(content.splitlines(), 1):
+                  if "sql_sha256" in line or "sha256" in line.lower():
+                      continue
+                  if hex_secret.search(line):
+                      violations.append(f"{path}:{lineno}: potential 256-bit hex secret detected")
+
+          manifest = (base / "k8s-manifest.yaml").read_text()
+          if "<REDACTED_MCP_API_TOKEN>" not in manifest:
+              violations.append("k8s-manifest.yaml: missing <REDACTED_MCP_API_TOKEN> placeholder")
+          if "secretKeyRef" not in manifest:
+              violations.append("k8s-manifest.yaml: MCP_API_TOKEN must reference secretKeyRef")
+
+          if violations:
+              print("\n".join(violations))
+              sys.exit(1)
+          print("Secret hygiene check passed.")
+          PY
+
+      - name: Validate Kubernetes Manifest & Grafana Dashboard JSON
+        run: |
+          python - << 'PY'
+          import json
+          import yaml
+          from pathlib import Path
+
+          docs = list(yaml.safe_load_all(Path("ai-mcp-governance/k8s-manifest.yaml").read_text()))
+          assert len(docs) >= 3, f"Expected >= 3 K8s resources, found {len(docs)}"
+
+          dashboard = json.loads(Path("ai-mcp-governance/grafana-mcp-governance-dashboard.json").read_text())
+          assert "panels" in dashboard and len(dashboard["panels"]) >= 5, "Invalid Grafana dashboard schema"
+          print(f"Validated {len(docs)} K8s manifests and {len(dashboard['panels'])} Grafana panels.")
+          PY
