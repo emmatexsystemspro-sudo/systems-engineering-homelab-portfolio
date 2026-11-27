@@ -1,0 +1,43 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: lab-apps
+  labels:
+    kubernetes.io/metadata.name: lab-apps
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: governed-pg-mcp-compliant
+  namespace: lab-apps
+  labels:
+    app: governed-pg-mcp
+    tier: ai-governance
+    owner: platform-security
+    data-classification: internal-telemetry
+spec:
+  containers:
+    - name: governed-pg-mcp
+      image: localhost/governed-pg-mcp:v2
+      securityContext:
+        privileged: false
+        allowPrivilegeEscalation: false
+      resources:
+        requests:
+          cpu: 100m
+          memory: 128Mi
+        limits:
+          cpu: 500m
+          memory: 256Mi
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: rogue-non-compliant-pod
+  namespace: lab-apps
+spec:
+  containers:
+    - name: rogue
+      image: nginx:latest
+      securityContext:
+        privileged: true

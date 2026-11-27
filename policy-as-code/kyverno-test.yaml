@@ -1,0 +1,49 @@
+apiVersion: cli.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: lab-apps-validating-policies-test
+policies:
+  - validating-policies.yaml
+resources:
+  - test-resources.yaml
+results:
+  - policy: require-resource-limits
+    kind: Pod
+    resources:
+      - lab-apps/governed-pg-mcp-compliant
+    result: pass
+  - policy: disallow-privileged-containers
+    kind: Pod
+    resources:
+      - lab-apps/governed-pg-mcp-compliant
+    result: pass
+  - policy: disallow-latest-tag
+    kind: Pod
+    resources:
+      - lab-apps/governed-pg-mcp-compliant
+    result: pass
+  - policy: require-governance-labels
+    kind: Pod
+    resources:
+      - lab-apps/governed-pg-mcp-compliant
+    result: pass
+  - policy: require-resource-limits
+    kind: Pod
+    resources:
+      - lab-apps/rogue-non-compliant-pod
+    result: fail
+  - policy: disallow-privileged-containers
+    kind: Pod
+    resources:
+      - lab-apps/rogue-non-compliant-pod
+    result: fail
+  - policy: disallow-latest-tag
+    kind: Pod
+    resources:
+      - lab-apps/rogue-non-compliant-pod
+    result: fail
+  - policy: require-governance-labels
+    kind: Pod
+    resources:
+      - lab-apps/rogue-non-compliant-pod
+    result: fail
