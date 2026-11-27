@@ -1,0 +1,64 @@
+name: Policy-as-Code Admission Gate (Kyverno)
+
+on:
+  push:
+    branches: [ main, master ]
+    paths:
+      - "policy-as-code/**"
+      - "ai-mcp-governance/k8s-manifest.yaml"
+      - ".github/workflows/policy-as-code-ci.yml"
+  pull_request:
+    branches: [ main, master ]
+    paths:
+      - "policy-as-code/**"
+      - "ai-mcp-governance/k8s-manifest.yaml"
+      - ".github/workflows/policy-as-code-ci.yml"
+
+jobs:
+  kyverno-shift-left-validation:
+    name: Shift-Left Kyverno CEL Policy Validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install Kyverno CLI (v1.20.0)
+        run: |
+          KYVERNO_VER="v1.20.0"
+          curl -sSL "https://github.com{KYVERNO_VER}/kyverno-cli_${KYVERNO_VER}_linux_x86_64.tar.gz" -o /tmp/kyverno.tar.gz
+          tar -xzf /tmp/kyverno.tar.gz -C /tmp kyverno
+          sudo mv /tmp/kyverno /usr/local/bin/kyverno
+          kyverno version
+
+      - name: Validate Compliant Workload Manifest (ai-mcp-governance/k8s-manifest.yaml)
+        run: |
+          kyverno apply policy-as-code/validating-policies.yaml             --resource ai-mcp-governance/k8s-manifest.yaml             --policy-report
+
+      - name: Verify Negative Policy Enforcement Against Non-Compliant Fixture
+        run: |
+          cat << 'EOF' > /tmp/non-compliant-pod.yaml
+          apiVersion: v1
+          kind: Namespace
+          metadata:
+            name: lab-apps
+            labels:
+              kubernetes.io/metadata.name: lab-apps
+          ---
+          apiVersion: v1
+          kind: Pod
+          metadata:
+            name: rogue-ci-pod
+            namespace: lab-apps
+          spec:
+            containers:
+              - name: rogue
+                image: nginx:latest
+                securityContext:
+                  privileged: true
+          EOF
+          if kyverno apply policy-as-code/validating-policies.yaml --resource /tmp/non-compliant-pod.yaml; then
+            echo "ERROR: Non-compliant pod unexpectedly passed Kyverno CEL policies!"
+            exit 1
+          else
+            echo "SUCCESS: Kyverno CEL policies correctly rejected non-compliant workload."
+          fi

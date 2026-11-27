@@ -207,6 +207,10 @@ I am developing deeper expertise in **systems engineering, Linux systems adminis
 
 Implemented a hardened, read-only PostgreSQL Model Context Protocol (MCP) server (`ai-mcp-governance/`) enforcing 6-table allowlisting, SQL catalog/DDL blocking, `LIMIT <= 100` row caps, `BEGIN READ ONLY` standby pooling via PgBouncer, and real-time JSON audit streaming to Grafana Loki (`{job="governed-pg-mcp"}`). See [Phase 18 technical documentation](docs/15-phase18-ai-mcp-governance.md) for architecture and verification proof.
 
+## Phase 20 — K3s Policy-as-Code & Admission Governance
+
+Deployed lightweight single-replica **Kyverno v1.20.0** on K3s (`sys3-databasehost`) and enforced four CEL-based `ValidatingPolicy` admission guardrails (`policy-as-code/validating-policies.yaml`) across `lab-apps` requiring CPU/memory limits, non-privileged containers, immutable image tags, and `owner` + `data-classification` labels. Validated live webhook denial against non-compliant pods, rolled out `governed-pg-mcp:v2` cleanly, and integrated shift-left `kyverno apply` gates into GitHub Actions (`.github/workflows/policy-as-code-ci.yml`). See [Phase 20 technical documentation](docs/17-phase20-policy-as-code-admission-governance.md) for architecture and verification proof.
+
 ---
 
 **Evidence note:** This is a self-directed laboratory portfolio with selected, redacted screenshots of actual tests. Original source reports and unreviewed captures are not included. Simulated telemetry is not customer traffic, and no end-to-end automatic failover guarantee is claimed.

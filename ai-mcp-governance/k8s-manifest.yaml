@@ -16,6 +16,8 @@ metadata:
   labels:
     app: governed-pg-mcp
     tier: ai-governance
+    owner: platform-security
+    data-classification: internal-telemetry
 spec:
   replicas: 1
   selector:
@@ -26,6 +28,8 @@ spec:
       labels:
         app: governed-pg-mcp
         tier: ai-governance
+        owner: platform-security
+        data-classification: internal-telemetry
     spec:
       securityContext:
         runAsNonRoot: true
