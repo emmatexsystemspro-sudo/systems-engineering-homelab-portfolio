@@ -213,4 +213,8 @@ Deployed lightweight single-replica **Kyverno v1.20.0** on K3s (`sys3-databaseho
 
 ---
 
+## Phase 21 — Admission SIEM Telemetry & Zero-Trust Network Micro-Segmentation
+
+Enforced default-deny ingress/egress Kubernetes `NetworkPolicy` micro-segmentation (`policy-as-code/network-policies.yaml`) across `lab-apps` via K3s embedded `kube-router`, restored Loki v3 TSDB ingestion on `sys6-monitoring`, deployed a lightweight RBAC-scoped Kyverno admission event & policy violation forwarder (`policy-as-code/kyverno-loki-shipper.yaml`), and extended the Grafana SIEM dashboard (`ai-mcp-governance/grafana-mcp-governance-dashboard.json`) and GitHub Actions CI gate. See [Phase 21 technical documentation](docs/18-phase21-admission-siem-network-segmentation.md) for architecture and verification proof.
+
 **Evidence note:** This is a self-directed laboratory portfolio with selected, redacted screenshots of actual tests. Original source reports and unreviewed captures are not included. Simulated telemetry is not customer traffic, and no end-to-end automatic failover guarantee is claimed.

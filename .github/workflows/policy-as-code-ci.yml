@@ -1,17 +1,23 @@
-name: Policy-as-Code Admission Gate (Kyverno)
+name: Policy-as-Code Admission & Network Governance CI (Kyverno)
 
 on:
   push:
-    branches: [ main, master ]
+    branches:
+      - main
+      - master
     paths:
       - "policy-as-code/**"
       - "ai-mcp-governance/k8s-manifest.yaml"
+      - "ai-mcp-governance/grafana-mcp-governance-dashboard.json"
       - ".github/workflows/policy-as-code-ci.yml"
   pull_request:
-    branches: [ main, master ]
+    branches:
+      - main
+      - master
     paths:
       - "policy-as-code/**"
       - "ai-mcp-governance/k8s-manifest.yaml"
+      - "ai-mcp-governance/grafana-mcp-governance-dashboard.json"
       - ".github/workflows/policy-as-code-ci.yml"
 
 jobs:
@@ -35,3 +41,14 @@ jobs:
       - name: Run Kyverno Shift-Left Policy Test Suite (8 Positive & Negative Assertions)
         run: |
           kyverno test policy-as-code/ --detailed-results
+
+  network-policy-and-siem-validation:
+    name: Validate Zero-Trust NetworkPolicies & SIEM Telemetry Manifests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Validate NetworkPolicy & Kyverno SIEM Shipper Governance Invariants
+        run: |
+          python3 -c "import json, yaml; docs = list(yaml.safe_load_all(open('policy-as-code/network-policies.yaml'))) + list(yaml.safe_load_all(open('policy-as-code/kyverno-loki-shipper.yaml'))); assert len(docs) >= 8; assert all(d.get('metadata', {}).get('labels', {}).get('owner') == 'platform-security' for d in docs); assert all(d.get('metadata', {}).get('labels', {}).get('data-classification') == 'internal-telemetry' for d in docs); dash = json.load(open('ai-mcp-governance/grafana-mcp-governance-dashboard.json')); db = dash.get('dashboard', dash); assert {8, 9}.issubset({p.get('id') for p in db.get('panels', ())}); print('All Phase 21 Governance & SIEM CI Assertions Passed')"

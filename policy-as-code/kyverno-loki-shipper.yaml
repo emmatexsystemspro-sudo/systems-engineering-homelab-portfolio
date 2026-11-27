@@ -1,0 +1,155 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kyverno-siem-shipper
+  namespace: kyverno
+  labels:
+    owner: platform-security
+    data-classification: internal-telemetry
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kyverno-siem-shipper
+  labels:
+    owner: platform-security
+    data-classification: internal-telemetry
+rules:
+  - apiGroups: [""]
+    resources: ["events", "pods", "pods/log"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kyverno-siem-shipper
+  labels:
+    owner: platform-security
+    data-classification: internal-telemetry
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kyverno-siem-shipper
+subjects:
+  - kind: ServiceAccount
+    name: kyverno-siem-shipper
+    namespace: kyverno
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kyverno-siem-shipper-script
+  namespace: kyverno
+  labels:
+    owner: platform-security
+    data-classification: internal-telemetry
+data:
+  shipper.py: |
+    import json, os, ssl, time, urllib.request
+    
+    TOKEN = open("/var/run/secrets/kubernetes.io/serviceaccount/token").read().strip()
+    CA = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+    CTX = ssl.create_default_context(cafile=CA)
+    API = "https://" + os.environ.get("KUBERNETES_SERVICE_HOST", "10.43.0.1") + ":" + os.environ.get("KUBERNETES_SERVICE_PORT", "443")
+    LOKI = "http" + "://192.168.1.36:3100/loki/api/v1/push"
+    SEEN = set()
+    
+    def k8s_get(path):
+        req = urllib.request.Request(API + path, headers={"Authorization": "Bearer " + TOKEN})
+        with urllib.request.urlopen(req, context=CTX, timeout=10) as r:
+            return json.loads(r.read().decode())
+    
+    def push_loki(entries):
+        if not entries:
+            return
+        payload = {"streams": [{"stream": {"job": "kyverno-admission-siem", "source": "k8s-kyverno-controller", "environment": "homelab"}, "values": entries}]}
+        req = urllib.request.Request(LOKI, data=json.dumps(payload).encode(), headers={"Content-Type": "application/json"})
+        urllib.request.urlopen(req, timeout=5).read()
+    
+    print("Starting Kyverno Admission SIEM Shipper...", flush=True)
+    push_loki([[str(int(time.time() * 1e9)), json.dumps({"event_type": "Normal", "reason": "ShipperStarted", "component": "kyverno-siem-shipper", "namespace": "kyverno", "message": "Kyverno Admission & Policy Violation SIEM forwarder active"})]])
+    
+    while True:
+        try:
+            batch = []
+            ev_data = k8s_get("/api/v1/events?limit=150")
+            for item in ev_data.get("items", []):
+                meta = item.get("metadata", {})
+                uid = meta.get("uid", "") + ":" + str(item.get("count", 1))
+                if uid in SEEN:
+                    continue
+                SEEN.add(uid)
+                reason = item.get("reason", "")
+                msg = item.get("message", "")
+                src = item.get("source", {}).get("component", "")
+                if any(k in (reason + " " + msg + " " + src).lower() for k in ("kyverno", "policy", "denied", "validating", "admission", "failedcreate", "disallow", "require-")):
+                    inv = item.get("involvedObject", {})
+                    rec = json.dumps({"event_type": item.get("type", ""), "reason": reason, "component": src, "namespace": inv.get("namespace", ""), "kind": inv.get("kind", ""), "name": inv.get("name", ""), "message": msg})
+                    batch.append([str(int(time.time() * 1e9)), rec])
+            pods = k8s_get("/api/v1/namespaces/kyverno/pods?labelSelector=app.kubernetes.io/component=admission-controller").get("items", [])
+            for pod in pods:
+                pname = pod.get("metadata", {}).get("name", "")
+                req = urllib.request.Request(API + f"/api/v1/namespaces/kyverno/pods/{pname}/log?sinceSeconds=15", headers={"Authorization": "Bearer " + TOKEN})
+                lines = urllib.request.urlopen(req, context=CTX, timeout=10).read().decode(errors="ignore").splitlines()
+                for ln in lines:
+                    if any(w in ln.lower() for w in ("block", "denied", "disallow", "require-", "violation")):
+                        h = str(hash(ln))
+                        if h not in SEEN:
+                            SEEN.add(h)
+                            batch.append([str(int(time.time() * 1e9)), json.dumps({"event_type": "Warning", "reason": "AdmissionWebhookDenied", "component": "kyverno-admission-controller", "pod": pname, "message": ln})])
+            if len(SEEN) > 5000:
+                SEEN.clear()
+            push_loki(batch)
+            if batch:
+                print(f"Shipped {len(batch)} admission/policy events to Loki", flush=True)
+        except Exception as e:
+            print("Shipper loop error:", repr(e), flush=True)
+        time.sleep(5)
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kyverno-siem-shipper
+  namespace: kyverno
+  labels:
+    app: kyverno-siem-shipper
+    owner: platform-security
+    data-classification: internal-telemetry
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kyverno-siem-shipper
+  template:
+    metadata:
+      labels:
+        app: kyverno-siem-shipper
+        owner: platform-security
+        data-classification: internal-telemetry
+    spec:
+      serviceAccountName: kyverno-siem-shipper
+      nodeSelector:
+        kubernetes.io/hostname: sys3-databasehost
+      containers:
+        - name: shipper
+          image: localhost/governed-pg-mcp:v2
+          imagePullPolicy: IfNotPresent
+          command: ["python3", "/app/shipper.py"]
+          securityContext:
+            privileged: false
+            allowPrivilegeEscalation: false
+          resources:
+            requests:
+              cpu: 15m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
+          volumeMounts:
+            - name: script
+              mountPath: /app/shipper.py
+              subPath: shipper.py
+      volumes:
+        - name: script
+          configMap:
+            name: kyverno-siem-shipper-script
