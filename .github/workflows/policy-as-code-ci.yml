@@ -34,6 +34,7 @@ jobs:
 
       - name: Validate Compliant Workload Manifest (ai-mcp-governance/k8s-manifest.yaml)
         run: |
+          pip install -q pyyaml
           python3 -c 'import yaml; docs=list(yaml.safe_load_all(open("ai-mcp-governance/k8s-manifest.yaml"))); dep=next(d for d in docs if d and d.get("kind")=="Deployment"); ns={"apiVersion":"v1","kind":"Namespace","metadata":{"name":"lab-apps","labels":{"kubernetes.io/metadata.name":"lab-apps"}}}; pod={"apiVersion":"v1","kind":"Pod","metadata":{**dep["spec"]["template"]["metadata"],"name":dep["metadata"]["name"],"namespace":"lab-apps"},"spec":dep["spec"]["template"]["spec"]}; open("/tmp/compliant-pod.yaml","w").write(yaml.safe_dump_all([ns,pod]))'
           kyverno apply policy-as-code/validating-policies.yaml --resource /tmp/compliant-pod.yaml
 
