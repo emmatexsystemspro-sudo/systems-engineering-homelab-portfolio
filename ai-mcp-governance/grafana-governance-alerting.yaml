@@ -1,0 +1,106 @@
+apiVersion: 1
+contactPoints:
+  - orgId: 1
+    name: governance-soar-webhook
+    receivers:
+      - uid: gov_soar_webhook_01
+        type: webhook
+        settings:
+          url: http://127.0.0.1:9095/webhook
+          httpMethod: POST
+policies:
+  - orgId: 1
+    receiver: governance-soar-webhook
+    group_by:
+      - alertname
+    group_wait: 10s
+    group_interval: 1m
+    repeat_interval: 15m
+    routes:
+      - receiver: governance-soar-webhook
+        matchers:
+          - governance = true
+groups:
+  - orgId: 1
+    name: Governance-SIEM-Automated-Response
+    folder: Governance
+    interval: 30s
+    rules:
+      - uid: gov_kyverno_denial_burst
+        title: KyvernoAdmissionDenialBurst
+        condition: C
+        for: 0s
+        noDataState: OK
+        execErrState: OK
+        labels:
+          severity: high
+          governance: "true"
+        annotations:
+          summary: Multiple Kyverno admission policy denials detected in lab-apps
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: ag1od8hot5728f
+            model:
+              expr: sum(count_over_time({job="kyverno-admission-siem"}[5m]))
+              queryType: instant
+              refId: A
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              type: reduce
+              expression: A
+              reducer: last
+              refId: B
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: B
+              refId: C
+              conditions:
+                - evaluator:
+                    type: gt
+                    params:
+                      - 2
+      - uid: gov_mcp_blocked_sql
+        title: MCPBlockedSQLAttempt
+        condition: C
+        for: 0s
+        noDataState: OK
+        execErrState: OK
+        labels:
+          severity: critical
+          governance: "true"
+        annotations:
+          summary: Unauthorized SQL DDL or DML attempt blocked by governed-pg-mcp
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: ag1od8hot5728f
+            model:
+              expr: sum(count_over_time({job="governed-pg-mcp"} |= "blocked" [5m]))
+              queryType: instant
+              refId: A
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              type: reduce
+              expression: A
+              reducer: last
+              refId: B
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              expression: B
+              refId: C
+              conditions:
+                - evaluator:
+                    type: gt
+                    params:
+                      - 0
